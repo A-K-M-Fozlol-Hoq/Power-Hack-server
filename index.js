@@ -16,7 +16,10 @@ require('dotenv').config();
 
 // writing utils function instead of middleware
 const getEmailFromToken = (token) => {
-  return 'email';
+  const token2 = token.split(' ')[1];
+  const decoded = jwt.verify(token2, process.env.JWT_SECRET);
+  const { email } = decoded;
+  return email;
 };
 
 //database connection
@@ -28,7 +31,8 @@ const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
   connectTimeoutMS: 30000,
-  keepAlive: 1,
+  //   keepAlive: 1,
+  keepAlive: true,
 });
 // const client = new MongoClient(uri, { useUnifiedTopology: true}, { useNewUrlParser: true }, { connectTimeoutMS: 30000 }, { keepAlive: 1});
 
@@ -51,11 +55,11 @@ client.connect((err) => {
     .db('powerHack')
     .collection('billingCollection');
 
-  app.post('/api/registration', (req, res) => {
+  app.post('/api/registration', async (req, res) => {
     // fullName,email, age, address, phone, role, nid, profile,vehicleType
     const fullName = req.body.fullName;
     const email = req.body.email;
-    const password = bcrypt.hash(req.body.password, 10);
+    const password = await bcrypt.hash(req.body.password, 10);
     userCollection.find({ email: email }).toArray((err, users) => {
       if (users.length == 0) {
         userCollection
@@ -66,13 +70,18 @@ client.connect((err) => {
           })
           .then((result) => {
             // console.log(result);
-            const token = jwt.sign({ email: email }, process.env.JWT_SECRET, {
-              expiresIn: process.env.JWT_EXPIRY,
+            var token = jwt.sign({ email }, process.env.JWT_SECRET, {
+              expiresIn: process.env.JWT_EXPIRE, // expires in 365 days
             });
-            res.status(200).send(token);
+
+            // const token = jwt.sign({ email: email }, process.env.JWT_SECRET, {
+            //   expiresIn: '1d',
+            //   //   expiresIn: process.env.JWT_EXPIRY,
+            // });
+            return res.status(200).send({ token: token });
           });
       } else {
-        res.send('email already in use');
+        res.send({ msg: 'email already in use' });
       }
     });
   });
@@ -80,18 +89,23 @@ client.connect((err) => {
   app.post('/api/login', (req, res) => {
     const email = req.body.email;
     const password = req.body.password;
-    userCollection.find({ email: email }).toArray((err, user) => {
+    userCollection.find({ email: email }).toArray(async (err, user) => {
       if (user && user.length > 0) {
-        if (password === user.password) {
-          const token = jwt.sign({ email: email }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRY,
+        const isValidPassword = await bcrypt.compare(
+          password,
+          user[0].password
+        );
+
+        if (isValidPassword) {
+          var token = jwt.sign({ email }, process.env.JWT_SECRET, {
+            expiresIn: process.env.JWT_EXPIRE, // expires in 365 days
           });
-          res.status(200).send(token);
+          return res.status(200).send({ token: token });
         } else {
-          res.send('Failed');
+          res.send({ msg: 'Failed' });
         }
       } else {
-        res.send('user not found');
+        res.send({ msg: 'user not found' });
       }
     });
   });
@@ -126,12 +140,14 @@ client.connect((err) => {
       .then((response) => {
         res.status(200).send(response);
       })
-      .catch((err) => res.send('Failed'));
+      .catch((err) => res.send({ msg: 'Failed' }));
   });
 
   app.post('/api/add-billing', (req, res) => {
     // const order = req.body;
-    const { fullName, email, phone, ownerEmail, paidAmount } = req.body;
+    const { fullName, email, phone, paidAmount } = req.body;
+    const ownerEmail = getEmailFromToken(req.headers.token);
+    console.log(ownerEmail);
     billingCollection
       .insertOne({
         fullName,
@@ -145,7 +161,7 @@ client.connect((err) => {
       })
       .catch((err) => {
         console.log(err);
-        res.send('Failed');
+        res.send({ msg: 'Failed' });
       });
   });
 
@@ -184,7 +200,7 @@ client.connect((err) => {
     return res.status(200).send({ success: true });
   });
 
-  console.log('database connected successfully');
+  console.log({ msg: 'database connected successfully' });
   // client.close();
 });
 

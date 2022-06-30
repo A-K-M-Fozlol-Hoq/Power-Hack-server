@@ -113,34 +113,51 @@ client.connect((err) => {
   app.post('/api/billing-list', (req, res) => {
     let { query, pageNumber } = req.body;
     var perPage = 10;
-
+    const ownerEmail = getEmailFromToken(req.headers.token);
     // get records to skip
     var startFrom = pageNumber * perPage;
     // get data from mongo DB using pagination
-    billingCollection
-      .find({
-        $or: [
-          {
-            fullName: { $regex: `.*${query}*` },
-          },
-          {
-            phone: { $regex: `.*${query}*` },
-          },
-          {
-            email: { $regex: `.*${query}*` },
-          },
-          {
-            paidAmount: { $regex: `.*${query}*` },
-          },
-        ],
-      })
-      .skip(startFrom)
-      .limit(perPage)
-      .toArray()
-      .then((response) => {
-        res.status(200).send(response);
-      })
-      .catch((err) => res.send({ msg: 'Failed' }));
+    if (query) {
+      billingCollection
+        .find({
+          $or: [
+            {
+              fullName: { $regex: `.*${query}*` },
+            },
+            {
+              phone: { $regex: `.*${query}*` },
+            },
+            {
+              email: { $regex: `.*${query}*` },
+            },
+          ],
+          $and: [
+            {
+              ownerEmail: ownerEmail,
+            },
+            // {age:{$gt:minAge,$lt:maxAge}}
+          ],
+        })
+        .skip(startFrom)
+        .limit(perPage)
+        .toArray()
+        .then((response) => {
+          res.status(200).send(response);
+        })
+        .catch((err) => res.send({ msg: 'Failed' }));
+    } else {
+      billingCollection
+        .find({
+          ownerEmail: ownerEmail,
+        })
+        .skip(startFrom)
+        .limit(perPage)
+        .toArray()
+        .then((response) => {
+          res.status(200).send(response);
+        })
+        .catch((err) => res.send({ msg: 'Failed' }));
+    }
   });
 
   app.post('/api/add-billing', (req, res) => {

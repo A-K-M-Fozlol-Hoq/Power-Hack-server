@@ -164,7 +164,7 @@ client.connect((err) => {
     // const order = req.body;
     const { fullName, email, phone, paidAmount } = req.body;
     const ownerEmail = getEmailFromToken(req.headers.token);
-    console.log(ownerEmail);
+    // console.log(ownerEmail);
     billingCollection
       .insertOne({
         fullName,
@@ -183,16 +183,23 @@ client.connect((err) => {
   });
 
   app.put('/api/update-billing/:id', async (req, res) => {
-    const id = req.body.id;
     const fullName = req.body.fullName;
     const email = req.body.email;
     const phone = req.body.phone;
-    const ownerEmail = req.body.ownerEmail;
     const paidAmount = parseInt(req.body.paidAmount);
-
+    const ownerEmail = getEmailFromToken(req.headers.token);
+    // console.log({
+    //   fullName,
+    //   email,
+    //   phone,
+    //   paidAmount,
+    //   ownerEmail,
+    //   id: req.params.id,
+    // });
     billingCollection
       .updateOne(
-        { id: req.params.id },
+        // { id: req.params.id },
+        { _id: ObjectId(`${req.params.id}`) },
         {
           $set: {
             // _id: ObjectId(`${req.params.id}`),
@@ -211,6 +218,7 @@ client.connect((err) => {
 
   app.delete('/api/delete-billing/:id', async (req, res) => {
     // db.test_users.deleteOne( {"_id": ObjectId("4d512b45cc9374271b02ec4f")});
+    // console.log({ _id: ObjectId(`${req.params.id}`) });
     await billingCollection.deleteOne({
       _id: ObjectId(`${req.params.id}`),
     });

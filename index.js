@@ -165,21 +165,25 @@ client.connect((err) => {
     const { fullName, email, phone, paidAmount } = req.body;
     const ownerEmail = getEmailFromToken(req.headers.token);
     // console.log(ownerEmail);
-    billingCollection
-      .insertOne({
-        fullName,
-        email,
-        phone,
-        ownerEmail,
-        paidAmount: parseInt(paidAmount),
-      })
-      .then((result) => {
-        res.status(200).send(result);
-      })
-      .catch((err) => {
-        console.log(err);
-        res.send({ msg: 'Failed' });
-      });
+    if (fullName && email && phone && ownerEmail && paidAmount) {
+      billingCollection
+        .insertOne({
+          fullName,
+          email,
+          phone,
+          ownerEmail,
+          paidAmount: parseInt(paidAmount),
+        })
+        .then((result) => {
+          res.status(200).send(result);
+        })
+        .catch((err) => {
+          console.log(err);
+          res.send({ msg: 'Internal server error' });
+        });
+    } else {
+      res.send({ msg: 'Please Send all data properly' });
+    }
   });
 
   app.put('/api/update-billing/:id', async (req, res) => {
